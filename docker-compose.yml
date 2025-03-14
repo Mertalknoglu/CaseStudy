@@ -1,0 +1,94 @@
+﻿version: '3.8'
+
+services:
+  # 🟢 Product Service
+  product-service:
+    build:
+      context: .
+      dockerfile: ProductService/Product.Api/Dockerfile
+    container_name: product_service
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+      - rabbitmq
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://0.0.0.0:4000
+      - RabbitMQ__Host=rabbitmq
+      - backend
+
+  # 🔵 Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: AuthService/Auth.Api/Dockerfile
+    container_name: auth_service
+    ports:
+      - "2000:2000"
+    depends_on:
+      - redis
+      - rabbitmq
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://0.0.0.0:2000
+    networks:
+      - backend
+
+  # 🟡 Log Service
+  log-service:
+    build:
+      context: .
+      dockerfile: LogService/LogService.Api/Dockerfile
+    container_name: log_service
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+      - rabbitmq
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:3000
+    networks:
+      - backend
+
+  # 🔴 API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ApiGateway/ApiGateway/Dockerfile
+    container_name: api_gateway
+    ports:
+      - "1000:1000"
+    depends_on:
+      - product-service
+      - auth-service
+      - log-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:1000
+    networks:
+      - backend
+
+  # 🟣 Redis Cache
+  redis:
+    image: redis:latest
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+    restart: always
+    networks:
+      - backend
+
+  # 🟠 RabbitMQ
+  rabbitmq:
+    container_name: "rabbitmqcontainer"
+    image: rabbitmq:management
+    hostname: "rabbitmq"
+    ports:
+        - '5672:5672'
+        - '15672:15672'
+
+networks:
+  backend:
+    driver: bridge
